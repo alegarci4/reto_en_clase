@@ -1,0 +1,59 @@
+import cv2
+import requests
+from io import BytesIO
+
+def tomar_foto():
+    """Captura foto con la cámara web"""
+    cam = cv2.VideoCapture(0)
+    print("\nPresiona 's' para capturar o 'q' para salir")
+    
+    while True:
+        _, frame = cam.read()
+        cv2.imshow("Detección de Personas", frame)
+        
+        key = cv2.waitKey(1)
+        if key == ord('s'):
+            _, buffer = cv2.imencode(".jpg", frame)
+            cam.release()
+            cv2.destroyAllWindows()
+            return BytesIO(buffer)
+        elif key == ord('q'):
+            cam.release()
+            cv2.destroyAllWindows()
+            return None
+
+def detectar_persona(imagen, api_key):
+    """Usa API para detectar si hay una persona"""
+    if not imagen:
+        return False
+    
+    headers = {"Authorization": f"Key {api_key}"}
+    url = "https://api.clarifai.com/v2/models/person-detection/outputs"
+    
+    try:
+        files = {'image': ('foto.jpg', imagen.getvalue(), 'image/jpeg')}
+        response = requests.post(url, headers=headers, files=files)
+        return any(c['name'] == 'person' and c['value'] > 0.5 
+                 for c in response.json()['outputs'][0]['data']['concepts'])
+    except:
+        return False
+
+def main():
+    API_KEY = "b77a6d9889e7466f87e5d647c475e990"  #Nuestra API Key
+    
+    print("=== Detector de Personas ===")
+    while True:
+        opcion = input("\n1. Tomar foto\n2. Salir\nOpción: ")
+        
+        if opcion == "1":
+            foto = tomar_foto()
+            if foto:
+                print("Analizando...")
+                print("✅ Persona detectada" if detectar_persona(foto, API_KEY) 
+                     else "❌ No hay persona")
+        elif opcion == "2":
+            print("Saliendo...")
+            break
+
+if __name__ == "__main__":
+    main()
